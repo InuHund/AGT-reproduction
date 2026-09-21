@@ -11,7 +11,7 @@ torchrun --standalone --nproc_per_node=4 \
   --model_path "$MODEL_PATH" \
   --output_dir outputs/smoke_agt_ao \
   --backend zero3 \
-  --ao_mode exact \
+  --ao_mode none \
   --dataset_name locuslab/TOFU \
   --forget_split forget10 \
   --retain_split retain90 \

@@ -26,7 +26,7 @@ def parse_args():
     p.add_argument("--forget_split", default="forget10")
     p.add_argument("--retain_split", default="retain90")
     p.add_argument("--backend", choices=["zero3", "fsdp"], default="zero3")
-    p.add_argument("--ao_mode", choices=["exact", "first_order"], default="exact")
+    p.add_argument("--ao_mode", choices=["exact", "first_order", "none"], default="exact")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--batch_size", type=int, default=1)
@@ -120,7 +120,11 @@ def compute_total(args, model, fb, rb, delta, params):
         margin=args.simnpo_margin,
     )
     lr = causal_lm_loss(out_r.logits, rb["labels"])
-    if args.ao_mode == "exact":
+    if args.ao_mode == "none":
+        total = lf + lr
+        penalty = torch.zeros((), device=lf.device)
+        cosine = torch.zeros((), device=lf.device)
+    elif args.ao_mode == "exact":
         total, penalty, cosine, _, _ = exact_objective(
             lf, lr, params, args.ao_gamma, args.lambda_ao
         )
@@ -305,37 +309,45 @@ def main():
             context = higher_order_param_context(
                 model,
                 params,
-                enabled=(args.backend == "zero3" and args.zero3_gather_for_higher_order),
+                enabled=(
+                    args.backend == "zero3"
+                    and args.ao_mode == "exact"
+                    and args.zero3_gather_for_higher_order
+                ),
             )
             with context:
-                # The clean graph is intentionally consumed by the gate gradient calculation.
-                # This prevents the clean second-order graph from coexisting with the PGD graphs.
-                clean_total, clean_lf, clean_lr, clean_penalty, clean_cos, _ = compute_total(
-                    args, model, fb, rb, persistent_delta.detach(), params
-                )
-                clean_norm = clean_gradient_norm(clean_total, params, device)
-
-                # The paper disables adversarial training for an initial warm-up epoch and
-                # defines tau_grad from the final warm-up loss gradient norm.
-                at_warmup_end = epoch == args.warmup_epochs - 1 and (
-                    micro_step % steps_per_epoch == 0
-                )
-                if args.warmup_epochs == 0 and tau_grad is None:
-                    tau_grad = args.rho * clean_norm
+                if args.ao_mode == "none":
+                    clean_norm = float("nan")
                     at_warmup_end = False
-                if at_warmup_end:
-                    tau_grad = args.rho * clean_norm
-                    if is_main():
-                        print(
-                            f"[GBG] warmup finished: clean_grad_norm={clean_norm:.6g}, "
-                            f"tau_grad={tau_grad:.6g}"
-                        )
+                    active = False
+                else:
+                    clean_total, clean_lf, clean_lr, clean_penalty, clean_cos, _ = compute_total(
+                        args, model, fb, rb, persistent_delta.detach(), params
+                    )
+                    # Consume the clean graph before constructing the PGD graphs.
+                    clean_norm = clean_gradient_norm(clean_total, params, device)
 
-                active = (
-                    epoch >= args.warmup_epochs
-                    and tau_grad is not None
-                    and clean_norm < tau_grad
-                )
+                    # The paper disables adversarial training for an initial warm-up epoch and
+                    # defines tau_grad from the final warm-up loss gradient norm.
+                    at_warmup_end = epoch == args.warmup_epochs - 1 and (
+                        micro_step % steps_per_epoch == 0
+                    )
+                    if args.warmup_epochs == 0 and tau_grad is None:
+                        tau_grad = args.rho * clean_norm
+                        at_warmup_end = False
+                    if at_warmup_end:
+                        tau_grad = args.rho * clean_norm
+                        if is_main():
+                            print(
+                                f"[GBG] warmup finished: clean_grad_norm={clean_norm:.6g}, "
+                                f"tau_grad={tau_grad:.6g}"
+                            )
+
+                    active = (
+                        epoch >= args.warmup_epochs
+                        and tau_grad is not None
+                        and clean_norm < tau_grad
+                        )
                 # clean_total is no longer backpropagatable because clean_gradient_norm consumed it.
                 # Recompute the outer objective from scratch, after the gate/inner loop decision.
                 if active:

@@ -22,8 +22,8 @@ def gradient_geometry(
     sq_f = None
     sq_r = None
     for gf, gr, p in zip(grads_f, grads_r, params):
-        gf = _safe_grad(gf, p).float()
-        gr = _safe_grad(gr, p).float()
+        gf = _safe_grad(gf, p)
+        gr = _safe_grad(gr, p)
         term_dot = (gf * gr).sum()
         term_f = (gf * gf).sum()
         term_r = (gr * gr).sum()
