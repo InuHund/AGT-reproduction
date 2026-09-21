@@ -33,4 +33,3 @@ torchrun --standalone --nproc_per_node=4 \
   --max_length 512 \
   --wandb_project agt-ao-repro \
   --wandb_mode "${WANDB_MODE}" \
-  "$@"

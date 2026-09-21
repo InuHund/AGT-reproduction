@@ -26,6 +26,7 @@ def load_causal_lm(
         model_path,
         torch_dtype=dtype,
         low_cpu_mem_usage=True,
+        attn_implementation="eager",
     )
     model.config.use_cache = False
     if gradient_checkpointing:
