@@ -1,0 +1,32 @@
+model_path: meta-llama/Llama-2-7b-chat-hf
+output_dir: outputs/agt_ao_exact
+
+seed: 42
+backend: zero3
+ao_mode: exact
+gradient_checkpointing: true
+
+# Paper settings
+lr: 1.0e-4
+batch_size: 1
+gradient_accumulation_steps: 8
+epochs: 5
+ao_gamma: 1.0
+warmup_epochs: 1
+rho: 0.6
+perturb_layer: 10
+inner_steps: 4
+
+# Completion values: not explicitly specified in the paper
+lambda_ao: 1.0
+simnpo_beta: 0.1
+simnpo_margin: 0.0
+adv_epsilon: 1.0e-2
+adv_alpha: 5.0e-3
+max_grad_norm: .inf
+
+# Data
+dataset_name: locuslab/TOFU
+forget_split: forget10
+retain_split: retain90
+max_length: 512

@@ -1,0 +1,5 @@
+backend: fsdp
+ao_mode: first_order
+sharding: full_shard
+mixed_precision: bfloat16
+use_orig_params: true
