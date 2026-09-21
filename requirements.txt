@@ -1,0 +1,11 @@
+torch>=2.4,<3
+transformers>=4.45
+accelerate>=0.34
+datasets>=2.20
+deepspeed>=0.15
+sentencepiece>=0.2
+safetensors>=0.4
+rouge-score>=0.1.2
+wandb>=0.17
+pyyaml>=6.0
+pytest>=8.0
