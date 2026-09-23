@@ -46,7 +46,7 @@ def parse_args():
     p.add_argument("--max_length", type=int, default=512)
     p.add_argument("--max_steps", type=int, default=-1, help="Maximum optimizer updates; -1 means full training")
     p.add_argument("--log_every", type=int, default=1)
-    p.add_argument("--save_every", type=int, default=100)
+    p.add_argument("--save_every", type=int, default=0)
     p.add_argument("--wandb_project", default="agt-ao-repro")
     p.add_argument("--wandb_run_name", default=None)
     p.add_argument("--wandb_mode", choices=["online", "offline", "disabled"], default="disabled")
